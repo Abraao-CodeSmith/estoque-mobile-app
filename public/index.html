@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Estoque Mobile - Gestão Inteligente com IA</title>
+  <!-- Favicon microfone -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text y='.9em' font-size='75' x='10'>🎤</text></svg>">
+  
+  <!-- Fontes Google & Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header Fixo -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div>
+          <h1>Estoque Mobile</h1>
+          <span class="badge-ia"><i class="fa-solid fa-wand-magic-sparkles"></i> IA Powered</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnOpenExportModal" class="btn-share" title="Compartilhar / Exportar Estoque">
+          <i class="fa-solid fa-share-nodes"></i>
+          <span class="btn-text">Exportar</span>
+        </button>
+        <button id="btnLogout" class="btn-logout" title="Sair da conta">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="main-content">
+    
+    <!-- Barra de Busca & Estatísticas -->
+    <section class="search-section">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Buscar por produto ou código..." autocomplete="off">
+        <button id="btnClearSearch" class="btn-clear-search hidden"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="stats-bar">
+        <span id="totalItemsCount"><i class="fa-solid fa-cubes"></i> 0 itens cadastrados</span>
+      </div>
+    </section>
+
+    <!-- Lista / Grid de Produtos -->
+    <section class="products-section">
+      <div id="productsGrid" class="products-grid">
+        <!-- Cards gerados via JS -->
+      </div>
+      
+      <!-- Estado Vazio -->
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
+        <h3>Nenhum produto encontrado</h3>
+        <p>Clique no botão "+" abaixo para cadastrar seu primeiro item no estoque.</p>
+      </div>
+
+      <!-- Loading Spinner -->
+      <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Carregando estoque...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Botão Flutuante (FAB) para Adicionar Produto -->
+  <button id="btnOpenAddModal" class="fab-btn" title="Cadastrar Novo Produto">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- Botão Flutuante (FAB) de Microfone Global - Captura rápida por voz na tela principal -->
+  <button id="btnGlobalMic" class="fab-btn fab-mic" title="Cadastrar produto por voz">
+    <i class="fa-solid fa-microphone" id="globalMicIcon"></i>
+  </button>
+
+  <!-- ==================== MODAL DE CADASTRO (ETAPAS) ==================== -->
+  <div id="addModal" class="modal-backdrop hidden">
+    <div class="modal-container">
+      
+      <div class="modal-header">
+        <h2 id="modalStepTitle"><i class="fa-solid fa-camera"></i> Passo 1: Foto do Produto</h2>
+        <button class="btn-close-modal" id="btnCloseAddModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Indicador de Passos -->
+      <div class="wizard-steps">
+        <div class="step-dot active" id="dotStep1">1</div>
+        <div class="step-line" id="lineStep1"></div>
+        <div class="step-dot" id="dotStep2">2</div>
+        <div class="step-line" id="lineStep2"></div>
+        <div class="step-dot" id="dotStep3">3</div>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- ETAPA 1: Captura / Anexo de Imagem -->
+        <div id="step1Content" class="wizard-step-content">
+          <p class="step-desc">Tire uma foto do produto com a câmera ou escolha um arquivo da galeria.</p>
+          
+          <div class="image-picker-box">
+            <div id="imagePreviewContainer" class="image-preview-container hidden">
+              <img id="imagePreview" src="" alt="Pré-visualização do Produto">
+              <button id="btnRemoveImage" class="btn-remove-img" type="button"><i class="fa-solid fa-trash"></i> Remover</button>
+            </div>
+
+            <div id="imageUploadButtons" class="upload-buttons-group">
+              <label for="cameraInput" class="btn-action btn-camera">
+                <i class="fa-solid fa-camera"></i> Tirar Foto
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="input-hidden">
+              </label>
+
+              <label for="galleryInput" class="btn-action btn-gallery">
+                <i class="fa-solid fa-image"></i> Abrir Galeria
+                <input type="file" id="galleryInput" accept="image/*" class="input-hidden">
+              </label>
+            </div>
+          </div>
+
+          <div class="step-actions">
+            <button id="btnSkipStep1" class="btn-secondary"><i class="fa-solid fa-forward-step"></i> Pular Imagem</button>
+            <button id="btnNextStep1" class="btn-primary">Avançar <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- ETAPA 2: Preenchimento Inteligente por Voz / IA -->
+        <div id="step2Content" class="wizard-step-content hidden">
+          <p class="step-desc">Fale os dados do produto (ex: <em>"10 camisetas polo azuis código 123"</em>) para preencher com IA.</p>
+          
+          <div class="voice-box">
+            <button id="btnRecordAudio" class="btn-record-audio">
+              <i class="fa-solid fa-microphone mic-icon"></i>
+              <span id="recordStatusText">Toque para Gravar Áudio</span>
+            </button>
+            
+            <div id="speechVisualizer" class="speech-visualizer hidden">
+              <span></span><span></span><span></span><span></span>
+            </div>
+
+            <div class="transcript-box">
+              <label for="transcriptText">Transcrição do Áudio:</label>
+              <textarea id="transcriptText" rows="3" placeholder="Fale ou digite aqui para a IA analisar..."></textarea>
+            </div>
+
+            <button id="btnAnalyzeAI" class="btn-action btn-ai">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Analisar com IA
+            </button>
+          </div>
+
+          <div class="step-actions">
+            <button id="btnBackStep2" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+            <button id="btnSkipStep2" class="btn-secondary">Pular Áudio</button>
+            <button id="btnNextStep2" class="btn-primary">Avançar <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- ETAPA 3: Formulário de Confirmação -->
+        <div id="step3Content" class="wizard-step-content hidden">
+          <p class="step-desc">Confirme ou ajuste os dados do produto antes de salvar:</p>
+          
+          <form id="productForm" onsubmit="return false;">
+            <div class="form-group">
+              <label for="inputCodigo"><i class="fa-solid fa-barcode"></i> Código do Produto</label>
+              <input type="text" id="inputCodigo" placeholder="Ex: 12345" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label for="inputProduto"><i class="fa-solid fa-tag"></i> Nome do Produto *</label>
+              <input type="text" id="inputProduto" placeholder="Ex: Camiseta Polo Especial" required autocomplete="off">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col">
+                <label for="inputQuantidade"><i class="fa-solid fa-arrow-up-9-1"></i> Quantidade</label>
+                <input type="number" id="inputQuantidade" min="0" value="1" required>
+              </div>
+
+              <div class="form-group col">
+                <label for="inputCor"><i class="fa-solid fa-palette"></i> Cor</label>
+                <input type="text" id="inputCor" placeholder="Ex: Azul Marinho" autocomplete="off">
+              </div>
+            </div>
+
+            <div class="step-actions">
+              <button id="btnBackStep3" class="btn-secondary" type="button"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+              <button id="btnSaveProduct" class="btn-primary btn-save" type="button">
+                <i class="fa-solid fa-check"></i> Salvar Produto
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE EXPORTAÇÃO E COMPARTILHAMENTO ==================== -->
+  <div id="exportModal" class="modal-backdrop hidden">
+    <div class="modal-container modal-export">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-share-nodes"></i> Exportar & Compartilhar</h2>
+        <button class="btn-close-modal" id="btnCloseExportModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <p class="export-desc">Escolha o formato desejado para baixar ou compartilhar no celular via WhatsApp, E-mail ou Drive:</p>
+        
+        <div class="export-options">
+          <button class="export-card" id="btnExportDB">
+            <div class="export-icon icon-db"><i class="fa-solid fa-database"></i></div>
+            <div class="export-info">
+              <h3>Banco de Dados SQLite</h3>
+              <p>Arquivo (.db / .sqlite) nativo local com estrutura completa.</p>
+            </div>
+            <i class="fa-solid fa-download download-arrow"></i>
+          </button>
+
+          <button class="export-card" id="btnExportExcel">
+            <div class="export-icon icon-excel"><i class="fa-solid fa-file-excel"></i></div>
+            <div class="export-info">
+              <h3>Planilha Excel</h3>
+              <p>Arquivo (.xlsx) formatado com dados estilizados.</p>
+            </div>
+            <i class="fa-solid fa-download download-arrow"></i>
+          </button>
+
+          <button class="export-card" id="btnExportCSV">
+            <div class="export-icon icon-csv"><i class="fa-solid fa-file-csv"></i></div>
+            <div class="export-info">
+              <h3>Arquivo CSV</h3>
+              <p>Formato de texto separado por ponto e vírgula (.csv).</p>
+            </div>
+            <i class="fa-solid fa-download download-arrow"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TELA DE AUTENTICAÇÃO (Login / Cadastro) ==================== -->
+  <div id="authScreen" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="brand-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <h1>Estoque Mobile</h1>
+        <p>Gerencie seu estoque de forma inteligente</p>
+      </div>
+
+      <!-- Abas Login / Cadastro -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin">Entrar</button>
+        <button class="auth-tab" id="tabRegister">Criar Conta</button>
+      </div>
+
+      <!-- Formulário de Login -->
+      <form id="formLogin" class="auth-form" onsubmit="return false;">
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-envelope"></i> E-mail</label>
+          <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email" required>
+        </div>
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-lock"></i> Senha</label>
+          <input type="password" id="loginSenha" placeholder="Sua senha" autocomplete="current-password" required>
+        </div>
+        <button type="submit" id="btnLogin" class="btn-auth">
+          <i class="fa-solid fa-right-to-bracket"></i> Entrar
+        </button>
+        <p class="auth-error hidden" id="loginError"></p>
+      </form>
+
+      <!-- Formulário de Cadastro -->
+      <form id="formRegister" class="auth-form hidden" onsubmit="return false;">
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-user"></i> Nome</label>
+          <input type="text" id="registerNome" placeholder="Seu nome" autocomplete="name" required>
+        </div>
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-envelope"></i> E-mail</label>
+          <input type="email" id="registerEmail" placeholder="seu@email.com" autocomplete="email" required>
+        </div>
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-lock"></i> Senha</label>
+          <input type="password" id="registerSenha" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required>
+        </div>
+        <button type="submit" id="btnRegister" class="btn-auth">
+          <i class="fa-solid fa-user-plus"></i> Criar Conta
+        </button>
+        <p class="auth-error hidden" id="registerError"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Componente Toast de Notificação -->
+  <div id="toast" class="toast hidden">
+    <i id="toastIcon" class="fa-solid fa-circle-check"></i>
+    <span id="toastMessage">Operação realizada com sucesso!</span>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
