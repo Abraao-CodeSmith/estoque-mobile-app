@@ -53,14 +53,15 @@ class AIService {
     const prompt = `Você é um assistente de cadastro de estoque. Analise a seguinte transcrição e extraia as informações em formato JSON estrito.
 Transcrição: "${text}"
 
-Regras:
-1. Ignorar comandos como "adicionar", "cadastrar", "criar", "novo".
-2. O primeiro número antes do produto é a quantidade.
-3. O número após o produto é o código.
-4. Se a cor não for citada, defina como "Única".
+Regras Estritas:
+1. Remover e IGNORAR palavras de intenção de comando como "Adicione", "Adicionar", "Cadastrar", "Inserir", "Criar", "Novo". A palavra "Adicione" NUNCA deve fazer parte do nome do produto.
+2. A palavra "modelo" ou "código" indica que a palavra/número imediatamente a seguir é o "codigo" do produto (ex: "modelo 3011" -> codigo = "3011", "código X5" -> codigo = "X5").
+3. Se houver as expressões "cor única", "única cor", "único", "única", ou se nenhuma cor for dita, defina a cor como "Única".
+4. Se disser "cor [nome]" (ex: "cor azul", "cor vermelha"), extraia essa cor.
+5. O primeiro número solto ou número no início da frase é a quantidade (padrão 1).
 
 Responda APENAS com um JSON válido:
-{"codigo": "código do produto ou string vazia", "produto": "nome do produto", "quantidade": número inteiro (padrão 1), "cor": "cor do produto ou Única"}`;
+{"codigo": "código do produto ou string vazia", "produto": "nome limpo do produto", "quantidade": número inteiro (padrão 1), "cor": "cor do produto ou Única"}`;
 
     const response = await ai.models.generateContent({
       model,
@@ -79,7 +80,7 @@ Responda APENAS com um JSON válido:
    * Chamada HTTP manual para OpenAI
    */
   static async callOpenAIAPI(text, apiKey) {
-    const prompt = `Analise o texto: "${text}" e extraia um JSON estrito com os campos: codigo (string), produto (string), quantidade (number, default 1), cor (string, default "Única"). Ignorar comandos como "adicionar".`;
+    const prompt = `Analise o texto: "${text}" e extraia um JSON estrito com os campos: codigo (string), produto (string), quantidade (number, default 1), cor (string, default "Única"). Ignorar comandos como "adicione" ou "adicionar". A palavra "modelo" ou "código" define o código do produto. As palavras "único" ou "única" definem cor "Única".`;
     const url = 'https://api.openai.com/v1/chat/completions';
     const payload = JSON.stringify({
       model: 'gpt-3.5-turbo',
@@ -101,7 +102,7 @@ Responda APENAS com um JSON válido:
    * Chamada HTTP manual para Groq
    */
   static async callGroqAPI(text, apiKey) {
-    const prompt = `Analise o texto: "${text}" e extraia um JSON estrito com os campos: codigo (string), produto (string), quantidade (number, default 1), cor (string, default "Única"). Ignorar comandos como "adicionar".`;
+    const prompt = `Analise o texto: "${text}" e extraia um JSON estrito com os campos: codigo (string), produto (string), quantidade (number, default 1), cor (string, default "Única"). Ignorar comandos como "adicione" ou "adicionar". A palavra "modelo" ou "código" define o código do produto. As palavras "único" ou "única" definem cor "Única".`;
     const url = 'https://api.groq.com/api/v1/chat/completions';
     const payload = JSON.stringify({
       model: 'llama3-8b-8192',
@@ -146,12 +147,7 @@ Responda APENAS com um JSON válido:
   }
 
   /**
-   * Parser heurístico local com regras específicas do usuário:
-   * Exemplo: "Adicionar 300 canetas 3011 preta"
-   * - Ignorar "Adicionar"
-   * - Primeiro número (300) -> quantidade
-   * - Número após produto (3011) -> código
-   * - Cor (preta) -> Preta (se não informada -> "Única")
+   * Parser heurístico local aprimorado com suporte a "modelo", "código", "cor única", "único", "adicione", etc.
    */
   static fallbackRegexParser(rawText) {
     if (!rawText || !rawText.trim()) {
@@ -160,8 +156,9 @@ Responda APENAS com um JSON válido:
 
     let text = rawText.trim();
 
-    // 1. Remover comandos/verbos no início da frase
-    text = text.replace(/^(adicionar|cadastrar|incluir|inserir|criar|novo|colocar|por)\s+/i, '');
+    // 1. Remover comandos de intenção no início ou soltos (ex: "adicione", "adicionar", "cadastrar", etc.)
+    text = text.replace(/^(?:adicione|adicionar|cadastrar|incluir|inserir|criar|novo|colocar|por)\s+/i, '');
+    text = text.replace(/\b(?:adicione|adicionar|cadastrar|incluir|inserir|criar)\b/gi, '');
 
     const colorMap = {
       'preto': 'Preto', 'preta': 'Preto', 'pretas': 'Preto', 'pretos': 'Preto',
@@ -175,51 +172,76 @@ Responda APENAS com um JSON válido:
       'dourado': 'Dourado', 'prata': 'Prata', 'vinho': 'Vinho'
     };
 
-    let cor = 'Única'; // Cor padrão caso não seja especificada
+    let cor = 'Única';
 
-    // Extrair cor se presente
-    const words = text.split(/\s+/);
-    for (const w of words) {
-      const cleanW = w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (colorMap[cleanW]) {
-        cor = colorMap[cleanW];
-        // Remover a palavra da cor do texto para isolar nome e números
-        text = text.replace(new RegExp(`\\b${w}\\b`, 'i'), '');
-        break;
+    // 2. Extrair cor única / único / cor padrão se presente
+    const unicaMatch = text.match(/\b(?:cor\s+ú?nica|ú?nica\s+cor|ú?nico|ú?nica|cor\s+padr[ãa]o|padr[ãa]o)\b/i);
+    if (unicaMatch) {
+      cor = 'Única';
+      text = text.replace(unicaMatch[0], '');
+    } else {
+      // 3. Extrair cor por padrão "cor [nome]" ou palavra de cor solta
+      const corPrefixMatch = text.match(/\bcor\s+([a-z-áéíóúâêîôûãõç]+)\b/i);
+      if (corPrefixMatch) {
+        const cleanName = corPrefixMatch[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (colorMap[cleanName]) {
+          cor = colorMap[cleanName];
+          text = text.replace(corPrefixMatch[0], '');
+        }
+      }
+
+      if (cor === 'Única') {
+        const words = text.split(/\s+/);
+        for (const w of words) {
+          const cleanW = w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          if (colorMap[cleanW]) {
+            cor = colorMap[cleanW];
+            text = text.replace(new RegExp(`\\b${w}\\b`, 'i'), '');
+            break;
+          }
+        }
       }
     }
 
-    // Identificar números no texto restante
-    // Exemplo restante: "300 canetas 3011"
+    // 4. Extrair CÓDIGO por palavra-chave ("modelo [cod]", "código [cod]", "ref [cod]", etc.)
+    let codigo = '';
+    const explicitCodeMatch = text.match(/\b(?:modelo|c[óo]digo|c[óo]d|ref|refer[êe]ncia)\s*[:#-]?\s*([a-z0-9-]+)\b/i);
+    if (explicitCodeMatch) {
+      codigo = explicitCodeMatch[1];
+      text = text.replace(explicitCodeMatch[0], '');
+    }
+
+    // 5. Identificar quantidade e código numérico restante se não encontrado acima
     const numberMatches = [...text.matchAll(/\b\d+\b/g)];
     let quantidade = 1;
-    let codigo = '';
 
-    if (numberMatches.length === 1) {
-      // Se há apenas 1 número:
-      // Se o número estiver no início da frase, é a quantidade. Senão, é o código.
-      const match = numberMatches[0];
-      if (match.index === 0 || /^^\s*\d+/.test(text)) {
-        quantidade = parseInt(match[0], 10) || 1;
-        text = text.replace(match[0], '');
-      } else {
-        codigo = match[0];
-        text = text.replace(match[0], '');
+    if (!codigo) {
+      if (numberMatches.length === 1) {
+        const match = numberMatches[0];
+        if (match.index === 0 || /^\s*\d+/.test(text)) {
+          quantidade = parseInt(match[0], 10) || 1;
+          text = text.replace(match[0], '');
+        } else {
+          codigo = match[0];
+          text = text.replace(match[0], '');
+        }
+      } else if (numberMatches.length >= 2) {
+        quantidade = parseInt(numberMatches[0][0], 10) || 1;
+        codigo = numberMatches[1][0];
+        text = text.replace(numberMatches[0][0], '');
+        text = text.replace(numberMatches[1][0], '');
       }
-    } else if (numberMatches.length >= 2) {
-      // Se há 2 ou mais números:
-      // O primeiro número é a quantidade, o segundo é o código
-      quantidade = parseInt(numberMatches[0][0], 10) || 1;
-      codigo = numberMatches[1][0];
-
-      // Remove ambos os números do texto do produto
-      text = text.replace(numberMatches[0][0], '');
-      text = text.replace(numberMatches[1][0], '');
+    } else {
+      // Se código já foi capturado via "modelo X", buscar quantidade no texto
+      if (numberMatches.length >= 1) {
+        quantidade = parseInt(numberMatches[0][0], 10) || 1;
+        text = text.replace(numberMatches[0][0], '');
+      }
     }
 
-    // Limpar o nome do produto restante
+    // 6. Limpar nome do produto restante
     let produto = text
-      .replace(/(?:quantidade|qtd|unidades|un|pe[çc]as|pcs|c[óo]digo|c[óo]d|ref|n[úu]mero|#)/gi, '')
+      .replace(/(?:quantidade|qtd|unidades|un|pe[çc]as|pcs|modelo|c[óo]digo|c[óo]d|ref|n[úu]mero|#)/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -227,7 +249,7 @@ Responda APENAS com um JSON válido:
       produto = rawText;
     }
 
-    // Capitalização limpa
+    // Capitalização inicial
     produto = produto.charAt(0).toUpperCase() + produto.slice(1);
 
     return {
