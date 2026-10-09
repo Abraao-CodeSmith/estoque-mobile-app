@@ -560,11 +560,11 @@ document.addEventListener('DOMContentLoaded', () => {
         addModal.classList.remove('hidden');
         showToast('Dados preenchidos pela IA! Confirme e salve.', 'success');
       } else {
-        showToast('Não foi possível identificar o produto. Tente falar novamente.', 'warning');
+        showToast(data.error || 'Não foi possível identificar o produto. Tente falar novamente.', 'warning');
       }
     } catch (err) {
       console.error(err);
-      showToast('Erro ao processar voz com IA.', 'error');
+      showToast(err.message || 'Erro ao processar voz com IA.', 'error');
     }
   }
 
