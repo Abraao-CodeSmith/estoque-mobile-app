@@ -538,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function processGlobalTranscript(text) {
     try {
-      const res = await fetch('/api/ai/parse', {
+      const res = await authFetch('/api/ai/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
@@ -649,7 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAnalyzeAI.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processando IA...';
 
     try {
-      const res = await fetch('/api/ai/parse', {
+      const res = await authFetch('/api/ai/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Gerando arquivo para exportação...', 'info');
 
     try {
-      const response = await fetch(endpoint);
+      const response = await authFetch(endpoint);
       if (!response.ok) throw new Error('Falha ao gerar arquivo de exportação.');
 
       const blob = await response.blob();
