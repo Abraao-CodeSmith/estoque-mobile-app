@@ -6,27 +6,44 @@ const https = require('https');
  * Usa o SDK oficial @google/genai para Gemini (mais estável e com suporte a modelos novos).
  */
 class AIService {
-  static async extractProductData(text) {
-    const iaEnabled = process.env.IA_ENABLED === 'true';
-    const apiKey = process.env.IA_API_KEY ? process.env.IA_API_KEY.trim() : '';
-    const provider = (process.env.IA_PROVIDER || 'gemini').toLowerCase().trim();
+  static async extractProductData(text, userConfig = null) {
+    let iaEnabled = process.env.IA_ENABLED === 'true';
+    let apiKey = process.env.IA_API_KEY ? process.env.IA_API_KEY.trim() : '';
+    let provider = (process.env.IA_PROVIDER || 'gemini').toLowerCase().trim();
+    let model = (process.env.IA_MODEL || 'gemini-flash-latest').trim();
+
+    // Sobrescreve com as configurações individuais do usuário caso estejam salvas
+    if (userConfig) {
+      if (userConfig.ia_enabled !== undefined && userConfig.ia_enabled !== null) {
+        iaEnabled = Boolean(userConfig.ia_enabled);
+      }
+      if (userConfig.ia_api_key && userConfig.ia_api_key.trim().length > 5) {
+        apiKey = userConfig.ia_api_key.trim();
+      }
+      if (userConfig.ia_provider) {
+        provider = userConfig.ia_provider.toLowerCase().trim();
+      }
+      if (userConfig.ia_model) {
+        model = userConfig.ia_model.trim();
+      }
+    }
 
     if (!text || typeof text !== 'string') {
       return this.fallbackRegexParser('');
     }
 
-    // Se a IA estiver ativada no .env e houver uma API Key configurada
+    // Se a IA estiver ativada e houver chave configurada
     if (iaEnabled && apiKey && apiKey !== 'sua_chave_aqui' && apiKey.length > 5) {
       try {
-        console.log(`🤖 Processando transcrição via IA (${provider})...`);
+        console.log(`🤖 Processando transcrição via IA (${provider} / ${model})...`);
         let aiResult = null;
 
         if (provider === 'gemini') {
-          aiResult = await this.callGeminiSDK(text, apiKey);
+          aiResult = await this.callGeminiSDK(text, apiKey, model);
         } else if (provider === 'openai') {
-          aiResult = await this.callOpenAIAPI(text, apiKey);
+          aiResult = await this.callOpenAIAPI(text, apiKey, model);
         } else if (provider === 'groq') {
-          aiResult = await this.callGroqAPI(text, apiKey);
+          aiResult = await this.callGroqAPI(text, apiKey, model);
         }
 
         if (aiResult) return aiResult;
@@ -34,7 +51,7 @@ class AIService {
         console.warn(`⚠️ Falha ao chamar a API de IA (${provider}): ${err.message}. Utilizando parser de fallback local.`);
       }
     } else {
-      console.log('ℹ️ IA desativada (IA_ENABLED=false) ou sem chave. Utilizando parser inteligente local.');
+      console.log('ℹ️ IA desativada ou sem chave individual. Utilizando parser inteligente local.');
     }
 
     return this.fallbackRegexParser(text);
@@ -42,10 +59,9 @@ class AIService {
 
   /**
    * Chamada via SDK oficial @google/genai para Gemini.
-   * Lê o modelo de IA_MODEL no .env (padrão: gemini-flash-latest).
    */
-  static async callGeminiSDK(text, apiKey) {
-    const model = (process.env.IA_MODEL || 'gemini-flash-latest').trim();
+  static async callGeminiSDK(text, apiKey, customModel = null) {
+    const model = (customModel || process.env.IA_MODEL || 'gemini-flash-latest').trim();
     console.log(`🔵 Usando modelo Gemini (SDK oficial): ${model}`);
 
     const ai = new GoogleGenAI({ apiKey });

@@ -801,6 +801,78 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ==================== CONFIGURAÇÕES DE IA ====================
+  const btnOpenSettingsModal = document.getElementById('btnOpenSettingsModal');
+  const btnCloseSettingsModal = document.getElementById('btnCloseSettingsModal');
+  const settingsModal = document.getElementById('settingsModal');
+  const settingIaEnabled = document.getElementById('settingIaEnabled');
+  const settingIaProvider = document.getElementById('settingIaProvider');
+  const settingIaApiKey = document.getElementById('settingIaApiKey');
+  const settingIaModel = document.getElementById('settingIaModel');
+  const btnSaveSettings = document.getElementById('btnSaveSettings');
+
+  if (btnOpenSettingsModal) {
+    btnOpenSettingsModal.addEventListener('click', async () => {
+      settingsModal.classList.remove('hidden');
+      await loadUserSettings();
+    });
+  }
+
+  if (btnCloseSettingsModal) {
+    btnCloseSettingsModal.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+    });
+  }
+
+  async function loadUserSettings() {
+    try {
+      const res = await authFetch('/api/user/settings');
+      const data = await res.json();
+      if (data.success && data.settings) {
+        const s = data.settings;
+        settingIaEnabled.checked = s.ia_enabled;
+        settingIaProvider.value = s.ia_provider || 'gemini';
+        settingIaApiKey.value = s.ia_api_key || '';
+        settingIaModel.value = s.ia_model || 'gemini-flash-latest';
+      }
+    } catch (err) {
+      console.error('Erro ao carregar configurações de IA:', err);
+    }
+  }
+
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', async () => {
+      btnSaveSettings.disabled = true;
+      btnSaveSettings.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+
+      try {
+        const res = await authFetch('/api/user/settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            ia_enabled: settingIaEnabled.checked,
+            ia_provider: settingIaProvider.value,
+            ia_api_key: settingIaApiKey.value.trim(),
+            ia_model: settingIaModel.value.trim()
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('Configurações de IA salvas com sucesso!', 'success');
+          settingsModal.classList.add('hidden');
+        } else {
+          showToast(data.error || 'Erro ao salvar configurações.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao salvar configurações de IA.', 'error');
+      } finally {
+        btnSaveSettings.disabled = false;
+        btnSaveSettings.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar Configurações';
+      }
+    });
+  }
+
   // ==================== AUXILIARES ====================
   function showToast(msg, type = 'success') {
     toastMessage.textContent = msg;

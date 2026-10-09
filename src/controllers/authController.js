@@ -124,6 +124,62 @@ class AuthController {
   static me(req, res) {
     res.json({ success: true, user: req.user });
   }
+
+  /**
+   * GET /api/user/settings
+   * Retorna as configurações de IA salvas para o usuário logado.
+   */
+  static getSettings(req, res) {
+    const userId = req.user.id;
+    db.get(
+      'SELECT ia_enabled, ia_provider, ia_api_key, ia_model FROM usuarios WHERE id = ?',
+      [userId],
+      (err, row) => {
+        if (err) {
+          console.error('Erro ao buscar configurações do usuário:', err.message);
+          return res.status(500).json({ error: 'Erro ao carregar configurações.' });
+        }
+        res.json({
+          success: true,
+          settings: {
+            ia_enabled: row ? Boolean(row.ia_enabled) : false,
+            ia_provider: row?.ia_provider || 'gemini',
+            ia_api_key: row?.ia_api_key || '',
+            ia_model: row?.ia_model || 'gemini-flash-latest'
+          }
+        });
+      }
+    );
+  }
+
+  /**
+   * PUT /api/user/settings
+   * Atualiza as configurações de IA do usuário logado.
+   */
+  static updateSettings(req, res) {
+    const userId = req.user.id;
+    const { ia_enabled, ia_provider, ia_api_key, ia_model } = req.body;
+
+    const enabledInt = ia_enabled ? 1 : 0;
+    const providerStr = (ia_provider || 'gemini').toLowerCase().trim();
+    const apiKeyStr = (ia_api_key || '').trim();
+    const modelStr = (ia_model || 'gemini-flash-latest').trim();
+
+    db.run(
+      `UPDATE usuarios SET ia_enabled = ?, ia_provider = ?, ia_api_key = ?, ia_model = ? WHERE id = ?`,
+      [enabledInt, providerStr, apiKeyStr, modelStr, userId],
+      function (err) {
+        if (err) {
+          console.error('Erro ao atualizar configurações:', err.message);
+          return res.status(500).json({ error: 'Erro ao salvar configurações de IA.' });
+        }
+        res.json({
+          success: true,
+          message: 'Configurações de IA salvas com sucesso!'
+        });
+      }
+    );
+  }
 }
 
 module.exports = AuthController;

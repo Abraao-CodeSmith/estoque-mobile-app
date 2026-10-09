@@ -61,6 +61,8 @@ router.post('/auth/login', AuthController.login);
 
 // ==================== ROTAS PROTEGIDAS (Exigem JWT válido) ====================
 router.get('/auth/me', authMiddleware, AuthController.me);
+router.get('/user/settings', authMiddleware, AuthController.getSettings);
+router.put('/user/settings', authMiddleware, AuthController.updateSettings);
 
 // Produtos (CRUD - isolado por usuário)
 router.get('/produtos', authMiddleware, ProductController.getAll);

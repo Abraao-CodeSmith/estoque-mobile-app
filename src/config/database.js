@@ -23,7 +23,14 @@ db.serialize(() => {
     )
   `, (err) => {
     if (err) console.error('❌ Erro ao criar tabela usuarios:', err.message);
-    else console.log('✅ Tabela "usuarios" verificada/criada com sucesso.');
+    else {
+      console.log('✅ Tabela "usuarios" verificada/criada com sucesso.');
+      // Adicionar colunas de IA caso ainda não existam no banco existente
+      db.run(`ALTER TABLE usuarios ADD COLUMN ia_enabled INTEGER DEFAULT 0`, () => {});
+      db.run(`ALTER TABLE usuarios ADD COLUMN ia_provider TEXT DEFAULT 'gemini'`, () => {});
+      db.run(`ALTER TABLE usuarios ADD COLUMN ia_api_key TEXT DEFAULT ''`, () => {});
+      db.run(`ALTER TABLE usuarios ADD COLUMN ia_model TEXT DEFAULT 'gemini-flash-latest'`, () => {});
+    }
   });
 
   // Tabela de Estoque com usuario_id para isolamento multi-tenant
