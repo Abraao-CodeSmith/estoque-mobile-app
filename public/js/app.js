@@ -547,20 +547,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (data.success && data.data) {
         const d = data.data;
-        // Preenche os campos ANTES de abrir o modal
+        // Limpa o estado anterior do formulário
+        resetWizardForm();
+        // Preenche os campos extraídos com a IA
         inputCodigo.value = d.codigo || '';
         inputProduto.value = d.produto || '';
         inputQuantidade.value = d.quantidade || 1;
         inputCor.value = d.cor || '';
-        // Zera imagem e transcrição
-        selectedImageFile = null;
         transcriptText.value = text;
-        // Abre modal diretamente no Passo 3 (confirmação)
+        // Abre o modal diretamente no Passo 3 (Confirmação)
         goToStep(3);
         addModal.classList.remove('hidden');
-        showToast('Dados preenchidos! Confirme e salve.', 'success');
+        showToast('Dados preenchidos pela IA! Confirme e salve.', 'success');
       } else {
-        showToast('Não entendi. Tente falar novamente.', 'warning');
+        showToast('Não foi possível identificar o produto. Tente falar novamente.', 'warning');
       }
     } catch (err) {
       console.error(err);
